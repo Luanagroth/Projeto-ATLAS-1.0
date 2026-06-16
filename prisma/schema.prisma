@@ -1,0 +1,699 @@
+// Atlas 1.0 - Prisma Schema
+// Camada de persistência com PostgreSQL (Neon)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==================== ENUMS ====================
+enum Role {
+  ADMIN
+  CONSULTANT
+  CLIENT
+}
+
+enum AuditStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AuditChecklistStatus {
+  DRAFT
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum NonConformityStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum ActionPlanStatus {
+  OPEN
+  IN_PROGRESS
+  AWAITING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum EvidenceOrigin {
+  AUDITORIA
+  EMPRESA
+}
+
+enum EvidenceStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  ADJUSTMENT_REQUESTED
+}
+
+enum AuditOpinionStatus {
+  DRAFT
+  COMPLETED
+}
+
+enum AuditDocumentOrigin {
+  AUDITORIA
+  EMPRESA
+  TERCEIRO
+}
+
+enum AuditorNoteVisibility {
+  INTERNAL
+  SHARED
+}
+
+enum NotificationType {
+  AUDIT_CREATED
+  AUDIT_DUE_SOON
+  AUDIT_COMPLETED
+  POSSIBLE_IRREGULARITY_CREATED
+  NC_CREATED
+  CORRECTION_SUBMITTED
+  CORRECTION_APPROVED
+  CORRECTION_REJECTED
+  DEADLINE_WARNING
+  NON_CONFORMITY_CREATED
+  ACTION_PLAN_CREATED
+  ACTION_PLAN_DUE_SOON
+  ACTION_PLAN_OVERDUE
+  ACTION_PLAN_COMPLETED
+  ACTION_PLAN_APPROVED
+  ACTION_PLAN_REJECTED
+  ACTION_PLAN_ANSWERED
+  EVIDENCE_CREATED
+  EVIDENCE_APPROVED
+  EVIDENCE_REJECTED
+  EVIDENCE_ADJUSTMENT_REQUESTED
+  OPINION_COMPLETED
+  DOCUMENT_CREATED
+  SYSTEM
+}
+
+enum ChecklistItemType {
+  SIM_NAO
+  TEXTO
+  NUMERO
+  DATA
+  MULTIPLA_ESCOLHA
+}
+
+// ==================== USUÁRIOS ====================
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  phone         String?
+  password      String? // null para OAuth
+  emailVerified DateTime?
+
+  // Relacionamentos
+  organizationMemberships    OrganizationMembership[]
+  auditsCreated              Audit[]                  @relation("CreatedBy")
+  auditsAssigned             Audit[]                  @relation("AssignedTo")
+  notifications              Notification[]
+  checklistResponses         ChecklistResponse[]
+  checklistResponsesUpdated  ChecklistResponse[]      @relation("ChecklistResponseUpdatedBy")
+  nonConformitiesCreated     NonConformity[]          @relation("NonConformityCreatedBy")
+  nonConformitiesResponsible NonConformity[]          @relation("NonConformityResponsible")
+  actionPlansCreated         ActionPlan[]             @relation("ActionPlanCreatedBy")
+  actionPlansResponsible     ActionPlan[]             @relation("ActionPlanResponsible")
+  actionPlanHistory          ActionPlanHistory[]      @relation("ActionPlanHistoryUser")
+  evidencesAttached          Evidence[]               @relation("EvidenceAttachedBy")
+  evidencesReviewed          Evidence[]               @relation("EvidenceReviewedBy")
+  auditOpinionsResponsible   AuditOpinion[]           @relation("AuditOpinionResponsible")
+  auditOpinionHistory        AuditOpinionHistory[]    @relation("AuditOpinionHistoryUser")
+  auditDocumentsAttached     AuditDocument[]          @relation("AuditDocumentAttachedBy")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+// ==================== ORGANIZAÇÕES ====================
+model Organization {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique
+  description String?
+  cnpj        String?
+  logo        String?
+  phone       String?
+  email       String?
+  address     String?
+
+  // Relacionamentos
+  members       OrganizationMembership[]
+  companies     Company[]
+  audits        Audit[]
+  checklists    Checklist[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+}
+
+model OrganizationMembership {
+  id             String @id @default(cuid())
+  userId         String
+  organizationId String
+  role           Role   @default(CLIENT)
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+// ==================== EMPRESAS ====================
+model Company {
+  id              String  @id @default(cuid())
+  organizationId  String
+  name            String
+  cnpj            String?
+  description     String?
+  address         String?
+  tradeName       String?
+  legalName       String?
+  documentType    String?
+  legalType       String?
+  segment         String?
+  employeeCount   Int?
+  responsibleName String?
+  responsibleRole String?
+  email           String?
+  phone           String?
+  zipCode         String?
+  city            String?
+  state           String?
+  country         String? @default("Brasil")
+  notes           String?
+  extraFields     Json?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  audits       Audit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, cnpj])
+  @@index([organizationId])
+  @@index([organizationId, name])
+}
+
+// ==================== AUDITORIAS ====================
+model Audit {
+  id             String  @id @default(cuid())
+  organizationId String
+  companyId      String
+  createdById    String?
+  assignedToId   String?
+
+  title       String
+  description String?
+  status      AuditStatus @default(DRAFT)
+
+  startDate DateTime?
+  endDate   DateTime?
+  dueDate   DateTime?
+
+  // Relacionamentos
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  company      Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  createdBy    User?        @relation("CreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  assignedTo   User?        @relation("AssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  nonConformities    NonConformity[]
+  checklistResponses ChecklistResponse[]
+  appliedChecklists  AuditChecklist[]
+  auditLogs          AuditLog[]
+  evidences          Evidence[]
+  opinion            AuditOpinion?
+  documents          AuditDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([companyId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AuditOpinion {
+  id            String  @id @default(cuid())
+  auditId       String  @unique
+  responsibleId String?
+
+  companyBrief       String?
+  generalCare        String?
+  positivePoints     String?
+  criticalPoints     String?
+  overallPerformance String?
+  identifiedRisks    String?
+  recommendations    String?
+  finalOpinion       String?
+  status             AuditOpinionStatus @default(DRAFT)
+
+  audit       Audit                 @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  responsible User?                 @relation("AuditOpinionResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
+  history     AuditOpinionHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([auditId])
+  @@index([responsibleId])
+  @@index([status])
+}
+
+model AuditOpinionHistory {
+  id             String  @id @default(cuid())
+  auditOpinionId String
+  userId         String?
+  action         String
+  changes        String?
+
+  opinion AuditOpinion @relation(fields: [auditOpinionId], references: [id], onDelete: Cascade)
+  user    User?        @relation("AuditOpinionHistoryUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([auditOpinionId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ==================== NÃO-CONFORMIDADES ====================
+model NonConformity {
+  id                   String  @id @default(cuid())
+  auditId              String
+  auditChecklistItemId String?
+  createdById          String?
+  responsibleId        String?
+
+  title       String
+  description String
+  evidence    String? // URL ou caminho
+  severity    Severity            @default(MEDIUM)
+  status      NonConformityStatus @default(OPEN)
+
+  correctionDeadline DateTime?
+  correctionNotes    String?
+  resolvedAt         DateTime?
+
+  // Relacionamentos
+  audit              Audit                        @relation(fields: [auditId], references: [id], onDelete: Restrict)
+  auditChecklistItem AuditChecklistItem?          @relation(fields: [auditChecklistItemId], references: [id], onDelete: SetNull)
+  createdBy          User?                        @relation("NonConformityCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  responsible        User?                        @relation("NonConformityResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
+  auditLogs          AuditLog[]
+  actionPlans        ActionPlan[]
+  actionPlanLinks    ActionPlanNonConformity[]
+  checklistItemLinks NonConformityChecklistItem[]
+  evidences          Evidence[]
+  documents          AuditDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([auditId])
+  @@index([auditChecklistItemId])
+  @@index([createdById])
+  @@index([responsibleId])
+  @@index([status])
+  @@index([severity])
+}
+
+// ==================== PLANOS DE ACAO ====================
+model ActionPlan {
+  id              String  @id @default(cuid())
+  nonConformityId String
+  createdById     String?
+  responsibleId   String?
+
+  title       String
+  description String?
+  status      ActionPlanStatus @default(OPEN)
+  priority    Severity         @default(MEDIUM)
+
+  dueDate     DateTime?
+  completedAt DateTime?
+  notes       String?
+  extraFields Json?
+
+  // Relacionamentos
+  nonConformity   NonConformity             @relation(fields: [nonConformityId], references: [id], onDelete: Cascade)
+  createdBy       User?                     @relation("ActionPlanCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  responsible     User?                     @relation("ActionPlanResponsible", fields: [responsibleId], references: [id], onDelete: SetNull)
+  history         ActionPlanHistory[]
+  nonConformities ActionPlanNonConformity[]
+  evidences       Evidence[]
+  documents       AuditDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([nonConformityId])
+  @@index([createdById])
+  @@index([responsibleId])
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
+}
+
+model ActionPlanNonConformity {
+  id              String @id @default(cuid())
+  actionPlanId    String
+  nonConformityId String
+
+  actionPlan    ActionPlan    @relation(fields: [actionPlanId], references: [id], onDelete: Cascade)
+  nonConformity NonConformity @relation(fields: [nonConformityId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([actionPlanId, nonConformityId])
+  @@index([actionPlanId])
+  @@index([nonConformityId])
+}
+
+model ActionPlanHistory {
+  id           String  @id @default(cuid())
+  actionPlanId String
+  userId       String?
+  action       String
+
+  // Relacionamentos
+  actionPlan ActionPlan @relation(fields: [actionPlanId], references: [id], onDelete: Cascade)
+  user       User?      @relation("ActionPlanHistoryUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([actionPlanId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ==================== CHECKLISTS ====================
+model Checklist {
+  id             String @id @default(cuid())
+  organizationId String
+
+  name        String
+  description String?
+  category    String?
+  version     Int     @default(1)
+  isActive    Boolean @default(true)
+
+  // Relacionamentos
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  items         ChecklistItem[]
+  appliedAudits AuditChecklist[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([organizationId, category])
+}
+
+model ChecklistItem {
+  id          String @id @default(cuid())
+  checklistId String
+
+  question    String
+  description String?
+  type        ChecklistItemType @default(SIM_NAO)
+  options     Json?
+  order       Int
+  isRequired  Boolean           @default(true)
+
+  // Relacionamentos
+  checklist  Checklist            @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  auditItems AuditChecklistItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([checklistId])
+}
+
+model AuditChecklist {
+  id                   String               @id @default(cuid())
+  auditId              String
+  checklistId          String?
+  checklistName        String
+  checklistDescription String?
+  checklistCategory    String?
+  checklistVersion     Int?
+  status               AuditChecklistStatus @default(DRAFT)
+  auditorNote          String?
+  auditorNoteVisibility AuditorNoteVisibility @default(INTERNAL)
+
+  audit     Audit                @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  template  Checklist?           @relation(fields: [checklistId], references: [id], onDelete: SetNull)
+  items     AuditChecklistItem[]
+  documents AuditDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([auditId])
+  @@index([checklistId])
+  @@index([status])
+}
+
+model AuditChecklistItem {
+  id               String  @id @default(cuid())
+  auditChecklistId String
+  sourceItemId     String?
+
+  question    String
+  description String?
+  type        ChecklistItemType
+  options     Json?
+  order       Int
+  isRequired  Boolean           @default(true)
+
+  auditChecklist     AuditChecklist               @relation(fields: [auditChecklistId], references: [id], onDelete: Cascade)
+  sourceItem         ChecklistItem?               @relation(fields: [sourceItemId], references: [id], onDelete: SetNull)
+  responses          ChecklistResponse[]
+  nonConformities    NonConformity[]
+  nonConformityLinks NonConformityChecklistItem[]
+  evidences          Evidence[]
+  documents          AuditDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([auditChecklistId])
+  @@index([sourceItemId])
+}
+
+model NonConformityChecklistItem {
+  id                   String @id @default(cuid())
+  nonConformityId      String
+  auditChecklistItemId String
+
+  nonConformity      NonConformity      @relation(fields: [nonConformityId], references: [id], onDelete: Cascade)
+  auditChecklistItem AuditChecklistItem @relation(fields: [auditChecklistItemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([nonConformityId, auditChecklistItemId])
+  @@index([nonConformityId])
+  @@index([auditChecklistItemId])
+}
+
+model ChecklistResponse {
+  id                   String  @id @default(cuid())
+  auditId              String
+  auditChecklistItemId String
+  respondentId         String
+  updatedById          String?
+
+  answerBoolean Boolean?
+  answerText    String?
+  answerNumber  Float?
+  answerDate    DateTime?
+  answerChoice  String?
+  notes         String?
+  evidence      String? // URL ou caminho
+
+  // Relacionamentos
+  audit              Audit              @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  auditChecklistItem AuditChecklistItem @relation(fields: [auditChecklistItemId], references: [id], onDelete: Cascade)
+  respondent         User               @relation(fields: [respondentId], references: [id], onDelete: Restrict)
+  updatedBy          User?              @relation("ChecklistResponseUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([auditId, auditChecklistItemId])
+  @@index([auditId])
+  @@index([respondentId])
+  @@index([updatedById])
+}
+
+model Evidence {
+  id                   String  @id @default(cuid())
+  auditId              String
+  actionPlanId         String
+  nonConformityId      String?
+  auditChecklistItemId String?
+  attachedById         String?
+  reviewedById         String?
+
+  title       String
+  description String?
+  fileUrl     String?
+  origin      EvidenceOrigin
+  status      EvidenceStatus @default(PENDING)
+  reviewNotes String?
+  reviewedAt  DateTime?
+
+  audit              Audit               @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  actionPlan         ActionPlan          @relation(fields: [actionPlanId], references: [id], onDelete: Cascade)
+  nonConformity      NonConformity?      @relation(fields: [nonConformityId], references: [id], onDelete: SetNull)
+  auditChecklistItem AuditChecklistItem? @relation(fields: [auditChecklistItemId], references: [id], onDelete: SetNull)
+  attachedBy         User?               @relation("EvidenceAttachedBy", fields: [attachedById], references: [id], onDelete: SetNull)
+  reviewedBy         User?               @relation("EvidenceReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  documents          AuditDocument[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([auditId])
+  @@index([actionPlanId])
+  @@index([nonConformityId])
+  @@index([auditChecklistItemId])
+  @@index([origin])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AuditDocument {
+  id                   String  @id @default(cuid())
+  auditId              String
+  auditChecklistId     String?
+  auditChecklistItemId String?
+  nonConformityId      String?
+  actionPlanId         String?
+  evidenceId           String?
+  attachedById         String?
+
+  title       String
+  description String?
+  category    String?
+  fileUrl     String?
+  origin      AuditDocumentOrigin
+
+  audit              Audit               @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  auditChecklist     AuditChecklist?     @relation(fields: [auditChecklistId], references: [id], onDelete: SetNull)
+  auditChecklistItem AuditChecklistItem? @relation(fields: [auditChecklistItemId], references: [id], onDelete: SetNull)
+  nonConformity      NonConformity?      @relation(fields: [nonConformityId], references: [id], onDelete: SetNull)
+  actionPlan         ActionPlan?         @relation(fields: [actionPlanId], references: [id], onDelete: SetNull)
+  evidence           Evidence?           @relation(fields: [evidenceId], references: [id], onDelete: SetNull)
+  attachedBy         User?               @relation("AuditDocumentAttachedBy", fields: [attachedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([auditId])
+  @@index([auditChecklistId])
+  @@index([auditChecklistItemId])
+  @@index([nonConformityId])
+  @@index([actionPlanId])
+  @@index([evidenceId])
+  @@index([attachedById])
+  @@index([category])
+  @@index([origin])
+  @@index([createdAt])
+}
+
+// ==================== NOTIFICAÇÕES ====================
+model Notification {
+  id             String  @id @default(cuid())
+  organizationId String
+  userId         String?
+
+  type                NotificationType
+  title               String
+  message             String
+  href                String?
+  metadata            Json?
+  relatedCompanyId    String?
+  relatedAuditId      String?
+  relatedNCId         String?
+  relatedActionPlanId String?
+  relatedEvidenceId   String?
+  relatedDocumentId   String?
+
+  read   Boolean   @default(false)
+  readAt DateTime?
+
+  // Relacionamentos
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@index([relatedCompanyId])
+  @@index([relatedAuditId])
+  @@index([relatedNCId])
+  @@index([relatedActionPlanId])
+  @@index([relatedEvidenceId])
+  @@index([relatedDocumentId])
+}
+
+// ==================== LOGS DE AUDITORIA ====================
+model AuditLog {
+  id              String  @id @default(cuid())
+  organizationId  String
+  auditId         String?
+  nonConformityId String?
+
+  action  String // "CREATED", "UPDATED", "DELETED", etc.
+  entity  String // "AUDIT", "NON_CONFORMITY", etc.
+  changes String? // JSON stringificado das mudanças
+
+  // Relacionamentos
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  audit         Audit?         @relation(fields: [auditId], references: [id], onDelete: SetNull)
+  nonConformity NonConformity? @relation(fields: [nonConformityId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([auditId])
+  @@index([createdAt])
+}

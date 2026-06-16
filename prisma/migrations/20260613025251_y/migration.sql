@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "NonConformityChecklistItem_nonConformityId_auditChecklistItemId" RENAME TO "NonConformityChecklistItem_nonConformityId_auditChecklistIt_key";
