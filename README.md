@@ -389,16 +389,45 @@ Isso cria uma base consistente para CI/CD e futuras automacoes de deploy.
 
 As principais capturas de demonstracao ficam em `public/screenshots`:
 
-1. [Login](./public/screenshots/01-login.png)
-2. [Dashboard](./public/screenshots/02-dashboard.png)
-3. [Empresas](./public/screenshots/03-empresas.png)
-4. [Auditorias](./public/screenshots/04-auditorias.png)
-5. [Notificacoes](./public/screenshots/05-notificacoes.png)
-6. [Configuracoes - Perfil e convite](./public/screenshots/06-configuracoes-perfil-convite.png)
-7. [Configuracoes - Dados da organizacao](./public/screenshots/07-configuracoes-organizacao.png)
-8. [Auditoria aberta - Visao geral](./public/screenshots/08-auditoria-aberta-visao-geral.png)
-9. [Auditoria aberta - Fluxo](./public/screenshots/09-auditoria-aberta-fluxo.png)
-10. [Relatorio final](./public/screenshots/10-relatorio-final.png)
+### 1. Login
+
+![Login](./public/screenshots/01-login.png)
+
+### 2. Dashboard
+
+![Dashboard](./public/screenshots/02-dashboard.png)
+
+### 3. Empresas
+
+![Empresas](./public/screenshots/03-empresas.png)
+
+### 4. Auditorias
+
+![Auditorias](./public/screenshots/04-auditorias.png)
+
+### 5. Notificacoes
+
+![Notificacoes](./public/screenshots/05-notificacoes.png)
+
+### 6. Configuracoes - Perfil e convite
+
+![Configuracoes - Perfil e convite](./public/screenshots/06-configuracoes-perfil-convite.png)
+
+### 7. Configuracoes - Dados da organizacao
+
+![Configuracoes - Dados da organizacao](./public/screenshots/07-configuracoes-organizacao.png)
+
+### 8. Auditoria aberta - Visao geral
+
+![Auditoria aberta - Visao geral](./public/screenshots/08-auditoria-aberta-visao-geral.png)
+
+### 9. Auditoria aberta - Fluxo
+
+![Auditoria aberta - Fluxo](./public/screenshots/09-auditoria-aberta-fluxo.png)
+
+### 10. Relatorio final
+
+![Relatorio final](./public/screenshots/10-relatorio-final.png)
 
 ## Resultado Esperado
 
