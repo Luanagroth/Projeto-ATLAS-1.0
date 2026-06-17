@@ -22,6 +22,9 @@ const editorRoles = ["ADMIN", "CONSULTANT"] as const;
 type AppliedChecklistItem = Awaited<
   ReturnType<typeof getAuditChecklistExecution>
 >[number]["items"][number];
+type AppliedChecklist = Awaited<
+  ReturnType<typeof getAuditChecklistExecution>
+>[number];
 
 function answerLabel(item: AppliedChecklistItem) {
   const response = item.responses[0];
@@ -91,9 +94,9 @@ export default async function NewAuditNonConformityPage({
     ? checklistItems.find((item) => item.id === selectedItemId)
     : null;
   const occurrenceItems = isConsolidatedOccurrence
-    ? appliedChecklists.flatMap((checklist) => {
+    ? appliedChecklists.flatMap((checklist: AppliedChecklist) => {
         return checklist.items
-          .filter((item) => {
+          .filter((item: AppliedChecklistItem) => {
             const response = item.responses[0];
 
             return (
@@ -101,7 +104,7 @@ export default async function NewAuditNonConformityPage({
               item.nonConformities.length === 0
             );
           })
-          .map((item) => ({
+          .map((item: AppliedChecklistItem) => ({
             checklistName: checklist.checklistName,
             item,
           }));
@@ -114,9 +117,17 @@ export default async function NewAuditNonConformityPage({
           "O plano de acao deve contemplar todos os itens nao conformes listados abaixo.",
           "",
           "Itens nao conformes incluidos:",
-          ...occurrenceItems.map(({ checklistName, item }) => {
+          ...occurrenceItems.map(
+            ({
+              checklistName,
+              item,
+            }: {
+              checklistName: string;
+              item: AppliedChecklistItem;
+            }) => {
             return `- [${checklistName}] ${item.question} | Resposta: ${answerLabel(item)}`;
-          }),
+            },
+          ),
         ].join("\n")
       : "";
   const initialValues = selectedItem
@@ -135,7 +146,9 @@ export default async function NewAuditNonConformityPage({
     : isConsolidatedOccurrence
       ? {
           auditChecklistItemId: occurrenceItems[0]?.item.id ?? "",
-          auditChecklistItemIds: occurrenceItems.map(({ item }) => item.id),
+          auditChecklistItemIds: occurrenceItems.map(
+            ({ item }: { item: AppliedChecklistItem }) => item.id,
+          ),
           auditId: audit.id,
           correctionDeadline: "",
           correctionNotes: "",

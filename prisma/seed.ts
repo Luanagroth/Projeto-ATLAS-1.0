@@ -17,6 +17,7 @@ import {
   PrismaClient,
   Role,
   Severity,
+  type ChecklistItem,
 } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/lib/auth-utils";
 
@@ -468,7 +469,7 @@ async function main() {
   });
 
   const completedItems = await Promise.all(
-    completedTemplateItems.map((item) =>
+    completedTemplateItems.map((item: ChecklistItem) =>
       prisma.auditChecklistItem.create({
         data: {
           auditChecklistId: completedAuditChecklist.id,
@@ -485,7 +486,7 @@ async function main() {
   );
 
   const progressItems = await Promise.all(
-    inProgressTemplateItems.map((item) =>
+    inProgressTemplateItems.map((item: ChecklistItem) =>
       prisma.auditChecklistItem.create({
         data: {
           auditChecklistId: inProgressAuditChecklist.id,

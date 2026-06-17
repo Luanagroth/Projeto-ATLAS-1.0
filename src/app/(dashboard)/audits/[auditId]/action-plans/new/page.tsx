@@ -16,6 +16,10 @@ type NewAuditActionPlanPageProps = {
   searchParams?: Promise<{ ncId?: string }>;
 };
 
+type AuditNonConformityOption = Awaited<
+  ReturnType<typeof listNonConformityOptionsForAudit>
+>[number];
+
 const editorRoles = ["ADMIN", "CONSULTANT"] as const;
 
 export default async function NewAuditActionPlanPage({
@@ -124,7 +128,7 @@ export default async function NewAuditActionPlanPage({
         </div>
       ) : (
         <div className="space-y-3">
-          {nonConformities.map((nc) => (
+          {nonConformities.map((nc: AuditNonConformityOption) => (
             <Link
               className="flex flex-col gap-1 rounded-xl border bg-card p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-muted/30"
               href={`/audits/${auditId}/action-plans/new?ncId=${nc.id}`}
